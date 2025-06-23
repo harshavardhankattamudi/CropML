@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Recommendation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Theme Toggle Button Styles */
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-left: 1rem;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(26, 115, 232, 0.1);
+            transform: scale(1.1);
+        }
+
+        /* Navigation Actions Container */
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: absolute;
+            right: 2rem;
+        }
+
+        /* Help Toggle Button */
+        .help-toggle {
+            background: linear-gradient(135deg, #87ceeb 0%, #b0e0e6 100%);
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #2c5aa0;
+            box-shadow: 0 4px 15px rgba(135, 206, 235, 0.3);
+            width: 40px;
+            height: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .help-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .help-toggle:hover::before {
+            left: 100%;
+        }
+
+        .help-toggle:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 6px 20px rgba(135, 206, 235, 0.4);
+        }
+
+        .help-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* Dark Theme Variables */
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --border-color: #404040;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --nav-bg: rgba(45, 45, 45, 0.95);
+            --container-bg: rgba(45, 45, 45, 0.9);
+            --input-bg: #333333;
+            --input-border: #555555;
+            --input-text: #ffffff;
+            --button-bg: #1a73e8;
+            --button-hover: #155ab6;
+        }
+
+        /* Light Theme Variables */
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #cccccc;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --nav-bg: rgba(255, 255, 255, 0.95);
+            --container-bg: rgba(255, 255, 255, 0.9);
+            --input-bg: transparent;
+            --input-border: #cccccc;
+            --input-text: #333333;
+            --button-bg: #1a73e8;
+            --button-hover: #155ab6;
+        }
+
+        /* Apply theme variables */
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .navbar {
+            background: var(--nav-bg);
+        }
+
+        .container {
+            background: var(--container-bg);
+            border-color: var(--border-color);
+            box-shadow: 0 10px 30px var(--shadow-color);
+        }
+
+        .form-input {
+            background-color: var(--input-bg);
+            border-color: var(--input-border);
+            color: var(--input-text);
+        }
+
+        .form-label {
+            color: var(--text-secondary);
+        }
+
+        .form-input:focus + .form-label {
+            background-color: var(--container-bg);
+        }
+
+        button[type="submit"] {
+            background: linear-gradient(45deg, var(--button-bg), var(--button-hover));
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+        }
+
+        .nav-link:hover {
+            background: rgba(26, 115, 232, 0.1);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+        }
+
+        #result {
+            background: var(--container-bg);
+            border-color: var(--border-color);
+        }
+
+        .crop-image-card {
+            background: var(--container-bg);
+            border-color: var(--border-color);
+        }
+
+        .action-btn {
+            background: var(--container-bg);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .action-btn:hover {
+            background: var(--bg-secondary);
+        }
+
+        .action-btn-secondary {
+            background: var(--container-bg);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .action-btn-secondary:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--container-bg, #ffffff);
+            margin: 3% auto;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            animation: slideUp 0.4s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .title-icon {
+            font-size: 2rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: white;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .modal-body {
+            padding: 2rem;
+            color: var(--text-primary, #333);
+        }
+
+        .help-section {
+            margin-bottom: 2.5rem;
+        }
+
+        .help-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-icon {
+            font-size: 1.5rem;
+        }
+
+        .help-section h3 {
+            color: #667eea;
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        /* Step Cards */
+        .step-cards {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .step-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+            border-radius: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .step-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .step-content p {
+            margin: 0;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.2rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-icon {
+            font-size: 1.8rem;
+        }
+
+        .feature-text h4 {
+            margin: 0 0 0.3rem 0;
+            color: #333;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .feature-text p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* Tips List */
+        .tips-list {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .tip-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 3px solid #28a745;
+        }
+
+        .tip-icon {
+            font-size: 1.2rem;
+        }
+
+        .tip-item span:last-child {
+            color: #333;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        /* Help Footer */
+        .help-footer {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #eee;
+        }
+
+        .support-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-radius: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+
+        .support-icon {
+            font-size: 2rem;
+        }
+
+        .support-text h4 {
+            margin: 0 0 0.3rem 0;
+            color: #333;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .support-text p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .support-text a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .support-text a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .nav-actions {
+                right: 1rem;
+                gap: 0.3rem;
+            }
+
+            .theme-toggle, .help-toggle {
+                padding: 8px;
+                font-size: 1rem;
+                width: 35px;
+                height: 35px;
+            }
+
+            .modal-content {
+                margin: 5% auto;
+                width: 95%;
+                max-height: 90vh;
+            }
+
+            .modal-header {
+                padding: 1.5rem;
+            }
+
+            .modal-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .modal-body {
+                padding: 1.5rem;
+            }
+
+            .step-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .step-card, .feature-item, .tip-item {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">🌾 CropML</div>
+        <div class="nav-links">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/crop-info" class="nav-link">Crop Info</a>
+            <a href="/history" class="nav-link">History</a>
+        </div>
+        <div class="nav-actions">
+            <button class="help-toggle" onclick="openHelpModal()" title="Help & Information">
+                ❓
+            </button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Crop Recommendation System</h2>
+        <p class="subtitle">Get ML-powered crop recommendations based on your soil and climate data</p>
+        
+        <form id="predictForm">
+            <div class="form-group">
+                <input type="number" id="N" name="N" class="form-input" placeholder=" " required>
+                <label for="N" class="form-label">Nitrogen (N)</label>
+            </div>
+            <div class="form-group">
+                <input type="number" id="P" name="P" class="form-input" placeholder=" " required>
+                <label for="P" class="form-label">Phosphorus (P)</label>
+            </div>
+            <div class="form-group">
+                <input type="number" id="K" name="K" class="form-input" placeholder=" " required>
+                <label for="K" class="form-label">Potassium (K)</label>
+            </div>
+            <div class="form-group">
+                <input type="number" step="any" id="temperature" name="temperature" class="form-input" placeholder=" " required>
+                <label for="temperature" class="form-label">Temperature (°C)</label>
+            </div>
+            <div class="form-group">
+                <input type="number" step="any" id="humidity" name="humidity" class="form-input" placeholder=" " required>
+                <label for="humidity" class="form-label">Humidity (%)</label>
+            </div>
+            <div class="form-group">
+                <input type="number" step="any" id="ph" name="ph" class="form-input" placeholder=" " required>
+                <label for="ph" class="form-label">pH Value</label>
+            </div>
+            <div class="form-group">
+                <input type="number" step="any" id="rainfall" name="rainfall" class="form-input" placeholder=" " required>
+                <label for="rainfall" class="form-label">Rainfall (mm)</label>
+            </div>
+            <button type="submit">Recommend Crop</button>
+        </form>
+        
+        <div id="result">
+            Your crop recommendation will appear here.
+        </div>
+
+        <div class="crop-showcase">
+            <h3>All Available Crops</h3>
+            <div class="crop-images-horizontal">
+                <div class="crop-image-card">
+                    <img src="/static/images/rice.jpeg" alt="Rice" onerror="this.style.display='none'">
+                    <div class="crop-label">Rice</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Maize.jpeg" alt="Maize" onerror="this.style.display='none'">
+                    <div class="crop-label">Maize</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Chickpea.jpeg" alt="Chickpea" onerror="this.style.display='none'">
+                    <div class="crop-label">Chickpea</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Kidney Beans.jpeg" alt="Kidney Beans" onerror="this.style.display='none'">
+                    <div class="crop-label">Kidney Beans</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Pigeon Peas.jpeg" alt="Pigeon Peas" onerror="this.style.display='none'">
+                    <div class="crop-label">Pigeon Peas</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Moth Beans.jpeg" alt="Moth Beans" onerror="this.style.display='none'">
+                    <div class="crop-label">Moth Beans</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Mung Bean.jpeg" alt="Mung Bean" onerror="this.style.display='none'">
+                    <div class="crop-label">Mung Bean</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Lentil.jpeg" alt="Lentil" onerror="this.style.display='none'">
+                    <div class="crop-label">Lentil</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Pomegranate.jpeg" alt="Pomegranate" onerror="this.style.display='none'">
+                    <div class="crop-label">Pomegranate</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Banana.jpeg" alt="Banana" onerror="this.style.display='none'">
+                    <div class="crop-label">Banana</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Mango.jpeg" alt="Mango" onerror="this.style.display='none'">
+                    <div class="crop-label">Mango</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Grapes.jpeg" alt="Grapes" onerror="this.style.display='none'">
+                    <div class="crop-label">Grapes</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Watermelon.jpeg" alt="Watermelon" onerror="this.style.display='none'">
+                    <div class="crop-label">Watermelon</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Muskmelon.jpeg" alt="Muskmelon" onerror="this.style.display='none'">
+                    <div class="crop-label">Muskmelon</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Apple.jpeg" alt="Apple" onerror="this.style.display='none'">
+                    <div class="crop-label">Apple</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Orange.jpeg" alt="Orange" onerror="this.style.display='none'">
+                    <div class="crop-label">Orange</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Papaya.jpeg" alt="Papaya" onerror="this.style.display='none'">
+                    <div class="crop-label">Papaya</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Coconut.jpeg" alt="Coconut" onerror="this.style.display='none'">
+                    <div class="crop-label">Coconut</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/Cotton.jpeg" alt="Cotton" onerror="this.style.display='none'">
+                    <div class="crop-label">Cotton</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/jute.jpg" alt="Jute" onerror="this.style.display='none'">
+                    <div class="crop-label">Jute</div>
+                </div>
+                <div class="crop-image-card">
+                    <img src="/static/images/coffee.jpg" alt="Coffee" onerror="this.style.display='none'">
+                    <div class="crop-label">Coffee</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <h3>Quick Actions</h3>
+            <div class="action-buttons">
+                <a href="/dashboard" class="action-btn">
+                    <span class="btn-icon">📊</span>
+                    <span class="btn-text">View Dashboard</span>
+                </a>
+                <a href="/crop-info" class="action-btn">
+                    <span class="btn-icon">🌱</span>
+                    <span class="btn-text">Crop Database</span>
+                </a>
+                <a href="/history" class="action-btn">
+                    <span class="btn-icon">📋</span>
+                    <span class="btn-text">View History</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="title-icon">🚀</span>
+                    <h2>Welcome to CropML</h2>
+                </div>
+                <button class="close-btn" onclick="closeHelpModal()">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <div class="section-header">
+                        <span class="section-icon">🎯</span>
+                        <h3>Quick Start Guide</h3>
+                    </div>
+                    <div class="step-cards">
+                        <div class="step-card">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>📊 Enter Soil Data</h4>
+                                <p>Fill in Nitrogen (N), Phosphorus (P), and Potassium (K) values from your soil test</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>🌡️ Add Climate Data</h4>
+                                <p>Input temperature, humidity, pH level, and rainfall for your location</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>🤖 Get AI Recommendations</h4>
+                                <p>Click "Recommend Crop" to receive ML-powered suggestions</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="section-header">
+                        <span class="section-icon">📈</span>
+                        <h3>Understanding Results</h3>
+                    </div>
+                    <div class="feature-grid">
+                        <div class="feature-item">
+                            <div class="feature-icon">🌾</div>
+                            <div class="feature-text">
+                                <h4>Recommended Crop</h4>
+                                <p>Best crop for your specific conditions</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🎯</div>
+                            <div class="feature-text">
+                                <h4>Confidence Score</h4>
+                                <p>AI certainty level for the recommendation</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">📋</div>
+                            <div class="feature-text">
+                                <h4>Detailed Information</h4>
+                                <p>Growing requirements, harvest time, market value</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="section-header">
+                        <span class="section-icon">💡</span>
+                        <h3>Pro Tips</h3>
+                    </div>
+                    <div class="tips-list">
+                        <div class="tip-item">
+                            <span class="tip-icon">✅</span>
+                            <span>Use recent soil test results for accurate recommendations</span>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">✅</span>
+                            <span>Enter average seasonal climate data</span>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">✅</span>
+                            <span>Check the crop showcase to explore all options</span>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">✅</span>
+                            <span>Visit Dashboard to track your prediction history</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-footer">
+                    <div class="support-section">
+                        <span class="support-icon">💬</span>
+                        <div class="support-text">
+                            <h4>Need Help?</h4>
+                            <p>Contact our support team at <a href="mailto:support@cropml.com">support@cropml.com</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('predictForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const input = {};
+            formData.forEach((value, key) => {
+                input[key] = parseFloat(value);
+            });
+
+            const resultDiv = document.getElementById('result');
+            const submitButton = document.querySelector('button[type="submit"]');
+
+            // --- Start Loading State ---
+            resultDiv.className = '';
+            resultDiv.innerHTML = '<div class="loader"></div>';
+            submitButton.disabled = true;
+
+            const response = await fetch('/crop-prediction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input)
+            });
+
+            const data = await response.json();
+
+            // --- End Loading State ---
+            submitButton.disabled = false;
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            if (data.status === 'success') {
+                // Display comprehensive crop details
+                const cropDetails = data.crop_details;
+                let resultHTML = `
+                    <div class="prediction-result">
+                        <div class="prediction-header">
+                            <h3>🌾 Recommended Crop: ${data.prediction}</h3>
+                            <div class="confidence-badge">${data.confidence}% Confidence</div>
+                        </div>
+                `;
+                
+                if (cropDetails.image_url) {
+                    resultHTML += `
+                        <div class="crop-image-section">
+                            <img src="${cropDetails.image_url}" alt="${cropDetails.name}" 
+                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDEzMCAxMDBDMTMwIDExNi41NjkgMTE2LjU2OSAxMzAgMTAwIDEzMEM4My40MzEgMTMwIDcwIDExNi41NjkgNzAgMTAwQzcwIDgzLjQzMSA4My40MzEgNzAgMTAwIDcwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8cGF0aCBkPSJNMTYwIDE0MEg0MEMzNS44MTYgMTQwIDIwIDE1NS44MTYgMjAgMTYwVjE4MEMyMCAxODQuMTg0IDM1LjgxNiAyMDAgNDAgMjAwSDE2MEMxNjQuMTg0IDIwMCAxODAgMTg0LjE4NCAxODAgMTgwVjE2MEMxODAgMTU1LjgxNiAxNjQuMTg0IDE0MCAxNjAgMTQwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K'">
+                        </div>
+                    `;
+                }
+                
+                resultHTML += `
+                        <div class="crop-description">
+                            <p>${cropDetails.description || 'No description available.'}</p>
+                        </div>
+                        
+                        <div class="crop-details-grid">
+                            <div class="detail-section">
+                                <h4>🌱 Growing Requirements</h4>
+                                <div class="detail-item">
+                                    <span class="detail-label">Growing Season:</span>
+                                    <span class="detail-value">${cropDetails.growing_season || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Water Requirement:</span>
+                                    <span class="detail-value">${cropDetails.water_requirement || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Temperature Range:</span>
+                                    <span class="detail-value">${cropDetails.temperature_range || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Soil Type:</span>
+                                    <span class="detail-value">${cropDetails.soil_type || 'N/A'}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-section">
+                                <h4>📊 Crop Information</h4>
+                                <div class="detail-item">
+                                    <span class="detail-label">Harvest Time:</span>
+                                    <span class="detail-value">${cropDetails.harvest_time || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Nutritional Value:</span>
+                                    <span class="detail-value">${cropDetails.nutritional_value || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Market Value:</span>
+                                    <span class="detail-value market-value ${(cropDetails.market_value || '').toLowerCase().replace(' ', '-')}">${cropDetails.market_value || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="prediction-actions">
+                            <button onclick="window.location.href='/crop-info'" class="action-btn-secondary">
+                                🌱 View All Crops
+                            </button>
+                            <button onclick="window.location.href='/dashboard'" class="action-btn-secondary">
+                                📊 View Dashboard
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                resultDiv.innerHTML = resultHTML;
+                resultDiv.classList.add('success');
+            } else {
+                resultDiv.innerHTML = "Error: " + data.error;
+                resultDiv.classList.add('error');
+            }
+        });
+    </script>
+
+    <script>
+        // Help Modal Functionality
+        function openHelpModal() {
+            document.getElementById('helpModal').style.display = 'block';
+        }
+
+        function closeHelpModal() {
+            document.getElementById('helpModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            var modal = document.getElementById('helpModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html> 

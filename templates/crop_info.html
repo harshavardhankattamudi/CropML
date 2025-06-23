@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Information - Crop Recommendation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='crop_info.css') }}">
+</head>
+<body>
+    <div class="crop-info-container">
+        <nav class="navbar">
+            <div class="nav-brand">🌾 CropML</div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/crop-info" class="nav-link active">Crop Info</a>
+                <a href="/history" class="nav-link">History</a>
+            </div>
+        </nav>
+
+        <div class="crop-info-content">
+            <div class="header-section">
+                <h1>Crop Information Database</h1>
+                <p>Comprehensive information about all crops supported by our recommendation system</p>
+                <div class="search-section">
+                    <input type="text" id="searchInput" placeholder="Search crops..." class="search-input">
+                    <select id="filterSelect" class="filter-select">
+                        <option value="">All Categories</option>
+                        <option value="cereal">Cereals</option>
+                        <option value="legume">Legumes</option>
+                        <option value="fruit">Fruits</option>
+                        <option value="fiber">Fiber Crops</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="crops-grid" id="cropsGrid">
+                {% for crop_key, crop_data in crops.items() %}
+                <div class="crop-card" data-crop="{{ crop_key }}" data-category="{{ get_crop_category(crop_key) }}">
+                    <div class="crop-image">
+                        <img src="{{ crop_data.image_url }}" alt="{{ crop_data.name }}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDEzMCAxMDBDMTMwIDExNi41NjkgMTE2LjU2OSAxMzAgMTAwIDEzMEM4My40MzEgMTMwIDcwIDExNi41NjkgNzAgMTAwQzcwIDgzLjQzMSA4My40MzEgNzAgMTAwIDcwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8cGF0aCBkPSJNMTYwIDE0MEg0MEMzNS44MTYgMTQwIDIwIDE1NS44MTYgMjAgMTYwVjE4MEMyMCAxODQuMTg0IDM1LjgxNiAyMDAgNDAgMjAwSDE2MEMxNjQuMTg0IDIwMCAxODAgMTg0LjE4NCAxODAgMTgwVjE2MEMxODAgMTU1LjgxNiAxNjQuMTg0IDE0MCAxNjAgMTQwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K'">
+                    </div>
+                    <div class="crop-content">
+                        <h3>{{ crop_data.name }}</h3>
+                        <p class="crop-description">{{ crop_data.description }}</p>
+                        
+                        <div class="crop-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Growing Season:</span>
+                                <span class="detail-value">{{ crop_data.growing_season }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Water Requirement:</span>
+                                <span class="detail-value">{{ crop_data.water_requirement }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Temperature Range:</span>
+                                <span class="detail-value">{{ crop_data.temperature_range }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Soil Type:</span>
+                                <span class="detail-value">{{ crop_data.soil_type }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Harvest Time:</span>
+                                <span class="detail-value">{{ crop_data.harvest_time }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Market Value:</span>
+                                <span class="detail-value market-value {{ crop_data.market_value.lower().replace(' ', '-') }}">
+                                    {{ crop_data.market_value }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="crop-actions">
+                            <button class="btn-primary" onclick="getPrediction('{{ crop_key }}')">
+                                Get Recommendation
+                            </button>
+                            <button class="btn-secondary" onclick="showCropDetails('{{ crop_key }}')">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Details Modal -->
+    <div id="cropModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Search and filter functionality
+        document.getElementById('searchInput').addEventListener('input', filterCrops);
+        document.getElementById('filterSelect').addEventListener('change', filterCrops);
+
+        function filterCrops() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filterValue = document.getElementById('filterSelect').value;
+            const cropCards = document.querySelectorAll('.crop-card');
+
+            cropCards.forEach(card => {
+                const cropName = card.querySelector('h3').textContent.toLowerCase();
+                const cropCategory = card.dataset.category;
+                
+                const matchesSearch = cropName.includes(searchTerm);
+                const matchesFilter = !filterValue || cropCategory === filterValue;
+
+                if (matchesSearch && matchesFilter) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function getPrediction(cropName) {
+            // Redirect to home page with a note about the crop
+            window.location.href = `/?highlight=${cropName}`;
+        }
+
+        function showCropDetails(cropName) {
+            fetch(`/api/crop-info/${cropName}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const cropInfo = data.crop_info;
+                        const modalContent = document.getElementById('modalContent');
+                        
+                        modalContent.innerHTML = `
+                            <div class="modal-header">
+                                <h2>${cropInfo.name}</h2>
+                                <img src="${cropInfo.image_url}" alt="${cropInfo.name}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDEzMCAxMDBDMTMwIDExNi41NjkgMTE2LjU2OSAxMzAgMTAwIDEzMEM4My40MzEgMTMwIDcwIDExNi41NjkgNzAgMTAwQzcwIDgzLjQzMSA4My40MzEgNzAgMTAwIDcwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8cGF0aCBkPSJNMTYwIDE0MEg0MEMzNS44MTYgMTQwIDIwIDE1NS44MTYgMjAgMTYwVjE4MEMyMCAxODQuMTg0IDM1LjgxNiAyMDAgNDAgMjAwSDE2MEMxNjQuMTg0IDIwMCAxODAgMTg0LjE4NCAxODAgMTgwVjE2MEMxODAgMTU1LjgxNiAxNjQuMTg0IDE0MCAxNjAgMTQwWiIgZmlsbD0iI0NDQ0NDQyIvPgo8L3N2Zz4K'">
+                            </div>
+                            <div class="modal-body">
+                                <p class="crop-description">${cropInfo.description}</p>
+                                
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <h4>Growing Requirements</h4>
+                                        <ul>
+                                            <li><strong>Season:</strong> ${cropInfo.growing_season}</li>
+                                            <li><strong>Water:</strong> ${cropInfo.water_requirement}</li>
+                                            <li><strong>Temperature:</strong> ${cropInfo.temperature_range}</li>
+                                            <li><strong>Soil:</strong> ${cropInfo.soil_type}</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <h4>Crop Details</h4>
+                                        <ul>
+                                            <li><strong>Harvest Time:</strong> ${cropInfo.harvest_time}</li>
+                                            <li><strong>Nutritional Value:</strong> ${cropInfo.nutritional_value}</li>
+                                            <li><strong>Market Value:</strong> ${cropInfo.market_value}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="modal-actions">
+                                    <button class="btn-primary" onclick="getPrediction('${cropName}')">
+                                        Get Recommendation for ${cropInfo.name}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.getElementById('cropModal').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching crop info:', error);
+                });
+        }
+
+        // Modal functionality
+        const modal = document.getElementById('cropModal');
+        const span = document.getElementsByClassName('close')[0];
+
+        span.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html> 
