@@ -388,11 +388,17 @@ def predict():
                 value = float(data[field])
                 if value < 0:
                     return jsonify({'error': f'{field} cannot be negative', 'status': 'error'}), 400
+                # Special validation for pH (0-14 range)
+                if field == 'ph' and (value < 0 or value > 14):
+                    return jsonify({'error': 'pH must be between 0 and 14', 'status': 'error'}), 400
             except ValueError:
                 return jsonify({'error': f'{field} must be a valid number', 'status': 'error'}), 400
         
         input_df = pd.DataFrame([data])
         input_df = input_df[features]
+        
+        # Ensure DataFrame has proper feature names to avoid warnings
+        input_df.columns = features
 
         # Scale the input
         input_scaled = scaler.transform(input_df)
